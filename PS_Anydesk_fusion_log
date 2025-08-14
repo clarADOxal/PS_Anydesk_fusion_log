@@ -1,0 +1,101 @@
+# ─── LABEL CREATION ────────────────────────────────────────────────
+cls
+$Name="PS_EVTX_4616_TIMESTOMP_Search"
+$version="0.1"
+$Creation_Date = "00:25 15/08/2025"
+
+#Delete unused method
+#───────────────
+$Creation_How = "Gemini+Humain Brain"
+
+#Logo Exemple
+#─────────
+$Logo = "... ->`n... ->   __|\`n... ->  |    \`n... ->  |__  /`n... ->     |/`n"
+
+#Todo
+#───
+$Todo="To Do"
+$Todo+="0.1 - First time event check"
+$Todo+="0.2 - Export as csv file"
+
+#Label
+#────
+if (($Name.Length) -gt ($version.Length)){
+	$fior1=$Name.Length+10;
+	$fior2=($name.length)-($name.length)
+	$fior3=($name.length)-($version.length)
+} else {
+	$fior1=$version.length+10;
+	$fior2=($version.length)-($name.length)
+	$fior3=(($version.length)-($version.length))
+}
+
+$fior1result="";for ($j=1; $j -le $fior1; $j++) { $fior1result+="#" }
+$fior2result="";for ($j=1; $j -le $fior2; $j++) { $fior2result+=" " }
+$fior3result="";for ($j=1; $j -le $fior3; $j++) { $fior3result+=" " }
+
+write-host $fior1result
+write-host "####"$Name$fior2result" ####"
+write-host "####"$version$fior3result" ####"
+write-host $fior1result
+get-date -displayHint Time
+write-host $Logo
+
+sleep
+cls
+
+# ─── FOLDER CREATION ────────────────────────────────────────────────
+
+$ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+foreach ($dir in "IN","OUT") {
+    $FullPath = Join-Path $ScriptPath $dir
+    if (-Not (Test-Path $FullPath)) { New-Item $FullPath -ItemType Directory | Out-Null }
+}
+
+
+cls
+Write-Host -ForegroundColor Red "Run this script at X:\Users\"
+Start-Sleep -Seconds 2
+
+
+# ─── Search connection_trace.txt files into user's profiles ─────────────────
+$Files = Get-ChildItem -Path $ScriptPath -Recurse -Filter "connection_trace.txt"
+
+$OutputLines = @()
+
+foreach ($file in $Files) {
+
+    # UserName 
+    $UserName = $file.Directory.Parent.Parent.Parent.Name
+
+    # Read file as UTF-16 LE BOM
+    $Bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+    $Lines = [System.Text.Encoding]::Unicode.GetString($Bytes) -split "`r?`n"
+
+    foreach ($line in $Lines) {
+        if ($line.Trim() -ne "") {
+
+            # Delete coma after date
+            $CleanLine = $line -replace ",", ""
+
+            # Keep space between date and time
+            if ($CleanLine -match "^(Incoming\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}))\s+(.*)$") {
+                $Prefix = $matches[1]      # "Incoming 2024-04-26 19:16"
+                $Rest   = $matches[4]      # le reste de la ligne
+
+                # Replace multiples spaces by tab
+                $Rest = $Rest -replace "\s+", "`t"
+
+                # Rebuild line + add username
+                $OutputLines += "$Prefix`t$Rest`t$UserName"
+            }
+        }
+    }
+}
+
+# ─── LOG Results ─────────────────────────────────────
+$OutFile = Join-Path $ScriptPath "OUT\out_anydesk_cnx.txt"
+$OutputLines | Out-File -FilePath $OutFile -Encoding UTF8
+
+Write-Host -ForegroundColor Green "Look at the result : $OutFile"
+& notepad ./out/out_anydesk_cnx.txt
